@@ -127,7 +127,7 @@ def executeRequest(url, requestType, payload, contentType) {
 def RunRefreshDB() {
 def url;
 try {
-url = new URL(serverUrl +"/HyperionPlanning/rest/v3/applications/ADFIN/jobs")
+url = new URL(serverUrl +"/HyperionPlanning/rest/v3/applications/Vision/jobs")
 println "**********************************************************"
 println "Executing Refresh Database"
 println "Instance : " +" https://<SERVICE_NAME>-<TENANT_NAME>.<SERVICE_TYPE>.<dcX>.oraclecloud.com" +"/HyperionPlanning/rest/v3/applications/APP Name/jobs"
