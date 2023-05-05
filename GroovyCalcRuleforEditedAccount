@@ -1,0 +1,137 @@
+// Capture the edited periods and products
+Set<String> editedMembers = []
+operation.grid.dataCellIterator({DataCell cell -> cell.edited}, MemberNameType.ESSBASE_NAME).each { DataCell cell ->
+        //editedMembers << cell.periodName << cell.getMemberName("Product")
+        editedMembers << cell.periodName << cell.getMemberName("Years") << cell.getMemberName("Product") << cell.getMemberName("Customer")
+    }
+
+if(editedMembers.size() == 0){
+    println("No edited cells found!")
+    return;
+}
+
+Set<String> editedAccounts = []
+operation.grid.dataCellIterator({DataCell cell -> cell.edited}, MemberNameType.ESSBASE_NAME).each { DataCell cell ->
+        editedAccounts << cell.getMemberName("Account")
+    }
+
+String calcScript = ""
+// Generate the calc script to calculate revenue for the products whose volume was edited
+if (editedAccounts.contains("Account1")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account2")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account3")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account4")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account5")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account6")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account7")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account8")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account9")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account10")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account11")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+else if (editedAccounts.contains("Account12")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OFS_Direct Input"
+    (
+       Some operations here
+    )
+    EndFix;"""
+}
+
+
+if(calcScript == "") {
+    println("No matching edited accounts found!")
+    return;
+}
+
+println("The following calc script was executed by $operation.user.fullName: \n $calcScript")
+return calcScript.toString()
+
