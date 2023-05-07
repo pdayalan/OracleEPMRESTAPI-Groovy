@@ -1,0 +1,69 @@
+// Capture the edited periods and products
+Set<String> editedMembers = []
+operation.grid.dataCellIterator({DataCell cell -> cell.edited}, MemberNameType.ESSBASE_NAME).each { DataCell cell ->
+        //editedMembers << cell.periodName << cell.getMemberName("Product")
+        editedMembers << cell.periodName << cell.getMemberName("Years") << cell.getMemberName("Product") << cell.getMemberName("Customer")
+    }
+
+if(editedMembers.size() == 0){
+    println("No edited cells found!")
+    return;
+}
+
+Set<String> editedAccounts = []
+operation.grid.dataCellIterator({DataCell cell -> cell.edited}, MemberNameType.ESSBASE_NAME).each { DataCell cell ->
+        editedAccounts << cell.getMemberName("Account")
+    }
+
+String calcScript = ""
+// Generate the calc script to calculate revenue for the products whose volume was edited
+if (editedAccounts.contains("Account 1")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OEP_Plan"
+    (
+       Some Operations
+    )
+    EndFix;"""
+}
+
+else if (editedAccounts.contains("Account 2")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OEP_Plan"
+    (
+       Some Operations
+    )
+    EndFix;"""
+}
+
+else if (editedAccounts.contains("Account 3")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OEP_Plan"
+    (
+       Some Operations
+    )
+    EndFix;"""
+}
+
+else if (editedAccounts.contains("Account 4")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OEP_Plan"
+    (
+        Some Operations
+    )
+    EndFix;"""
+}
+
+else if (editedAccounts.contains("Account 5")) {
+calcScript = """
+    Fix(${cscParams(operation.grid.pov, editedMembers)})
+    "OEP_Plan"
+    (
+         Some Operations
+    )
+    EndFix;"""
+}
+
