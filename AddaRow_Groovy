@@ -1,0 +1,20 @@
+/* RTPS: {Account} {Entity} {Currency} {Product} {Customer} {Market} */
+
+// Initialize a string variable named calcScript
+String calcScript1 = ""
+
+// Assign a multiline string to calcScript1 using triple quotes
+calcScript ="""
+  // FIX statement with multiple parameters
+  FIX({Account},&PlanStartYr,"OEP_Plan",&OB_Version,{Entity},{Currency},{Customer},{Market},"No Period")
+    // Set the value of {Product} to 0.00001
+    {Product} = .00001;
+  // ENDFIX statement
+  ENDFIX
+"""
+
+// Print a message indicating the execution of data aggregation
+println("Data aggregation was executed by $operation.user.fullName: \n $calcScript")
+
+// Return the string representation of calcScript
+return calcScript.toString()
