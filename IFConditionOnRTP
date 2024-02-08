@@ -1,0 +1,69 @@
+/* RTPS: {Scenario} {Version} {Years}  */
+
+
+String Scenariovariable = rtps.Scenario.enteredValue.trim()
+String calcScript = ""
+
+println("RTP value $Scenariovariable ")
+
+if(Scenariovariable == '"OEP_Plan"') {
+calcScript = """
+    FIX ("No FlexDimension")
+    	FIX(@Relative("Input Currencies", 0), @Relative("OEP_Total Entity", 0),@Relative("Total Product", 0),@Relative("Total Customer", 0), @Relative("Total Market", 0),@Relative("Total CostCenter", 0))
+    		FIX("Salable Units", "Avg Selling Price for Salable Units", "Avg Cost for Salable Units",@Relative("Management_hierarchy",0))
+                FIX(@Relative("YearTotal",0))
+
+                	Datacopy "Direct Input"->{Scenario}->{Version}->{Years} TO "Direct Input"->"OEP_LRP"->&LRP_Version->&LRPPreviousYr;
+                	ClearData "Direct Input"->"OEP_LRP"->&LRP_Version->&LRPPreviousYr;
+
+                ENDFIX;
+
+                FIX("OEP_LRP", &LRP_Version, &LRPPreviousYr)
+
+                    "Dec"
+                    	(
+                        	"Direct Input" = @SumRange("Direct Input"->{Scenario}->{Version}->{Years},@Relative("YearTotal",0));
+                        )
+
+                ENDFIX;
+            ENDFIX;
+         ENDFIX;
+ENDFIX;"""
+}
+
+else if (rtps.Scenario.enteredValue == "OEP_Actual") {
+calcScript = """
+    FIX ("No FlexDimension")
+    	FIX(@Relative("Input Currencies", 0), @Relative("OEP_Total Entity", 0),@Relative("Total Product", 0),@Relative("Total Customer", 0), @Relative("Total Market", 0),@Relative("Total CostCenter", 0))
+    		FIX("Salable Units", "Avg Selling Price for Salable Units", "Avg Cost for Salable Units",@Relative("Management_hierarchy",0) )
+    			// To create the blocks
+                FIX(@Relative("YearTotal",0))
+
+                	Datacopy "OFS_Load"->{Scenario}->{Version}->{Years} TO "Direct Input"->"OEP_LRP"->&LRP_Version->&LRPPreviousYr;
+                	ClearData "Direct Input"->"OEP_LRP"->&LRP_Version->&LRPPreviousYr;
+
+                ENDFIX;
+
+                FIX("OEP_LRP", &LRP_Version, &LRPPreviousYr)
+
+                    "Dec"
+                    	(
+                        	"Direct Input" = @SumRange("OFS_Load"->{Scenario}->{Version}->{Years},@Relative("YearTotal",0));
+                        );
+
+                ENDFIX;
+
+            ENDFIX;
+         ENDFIX;
+ENDFIX;"""
+}
+
+if(calcScript == "") {
+    println("No script found!")
+    return;
+}
+
+println("The following calc script was executed by $operation.user.fullName: \n $calcScript")
+return calcScript.toString()
+
+
