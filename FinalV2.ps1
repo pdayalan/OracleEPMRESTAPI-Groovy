@@ -1,8 +1,8 @@
 # Define variables
 $env:PATH += ";C:\oracle\EPM Automate\bin"
-$pwds = "VeCg2@12345678"
+$pwds = "Password"
 $logs = "C:\Users\E106573\Documents\logs"
-$URL = "https://pcm-test-resmedepm.epm.ap-sydney-1.ocs.oraclecloud.com"
+$URL = "https://test-oraclecloud.com"
 $datafiles = "C:\Oracle\EPM Automate\datafiles"
 $awsCliPath = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
 
@@ -29,7 +29,7 @@ function Run-EpmAutomate {
 # Login to EPM
 $loginLog = "$logs\login.log"
 Write-Output "Login Output:"
-Run-EpmAutomate "login dayalan.punniyamoorthy@rsmus.com $pwds $URL" $loginLog
+Run-EpmAutomate "login dayalan@example.com $pwds $URL" $loginLog
 
 # Get the Sub Var CurMth
 $curMonthLog = "$logs\curmonth.log"
@@ -77,7 +77,7 @@ Write-Output "Adjusted Year (FY24): $curYearFormatted"
 # Run Data Extraction Rule with the adjusted fiscal year
 $dataExtractionLog = "$logs\dataExtraction.log"
 $periodName = "$curMonth-$curYearFormatted"
-$integrationCommand = "runIntegration `"(DM12) ICPCMRPT to Snowflake Actual IC Calculations`" importMode=Replace exportMode=Replace periodName=`"{$periodName}`""
+$integrationCommand = "runIntegration `"IC Calculations`" importMode=Replace exportMode=Replace periodName=`"{$periodName}`""
 
 Write-Output "Data Extraction Output:"
 Run-EpmAutomate $integrationCommand $dataExtractionLog
@@ -90,7 +90,7 @@ Run-EpmAutomate "listfiles" $listFilesLog | Out-Null
 $listFilesContent = Get-Content -Path $listFilesLog
 
 # Parse the list of files to find the file that matches the pattern
-$filePattern = "outbox/PCM-SF-PCM Outbound Data_*"
+$filePattern = "outbox/PCM Outbound Data_*"
 $fileToDownload = $listFilesContent | Select-String -Pattern $filePattern | ForEach-Object { $_.Line.Trim() } | Sort-Object -Property { [int]($_ -replace '\D', '') } | Select-Object -Last 1
 
 if ($fileToDownload) {
@@ -117,7 +117,7 @@ if ($fileToDownload) {
             Write-Output "File downloaded successfully to $downloadFilePath"
 
             # AWS S3 copy command
-            $s3Destination = "s3://rapid-finance-us-03000-landing-zone-tlzprd/input/epm/"
+            $s3Destination = "s3://zone/input/epm/"
             $awsUploadLog = "$logs\uploadaws.log"
 
             # Upload the file to S3 bucket
@@ -126,7 +126,7 @@ if ($fileToDownload) {
             Get-Content -Path $awsUploadLog
 
             # Quiet mode if needed
-            & $awsCliPath s3 cp --quiet $downloadFilePath "s3://rapid-finance-us-03000-landing-zone-tlzdev/input/epm/" | Out-File -FilePath "$logs\uploadaws.log" -Append
+            & $awsCliPath s3 cp --quiet $downloadFilePath "s3://zone/input/epm/" | Out-File -FilePath "$logs\uploadaws.log" -Append
         } else {
             Write-Output "Downloaded file not found at $downloadFilePath"
         }
