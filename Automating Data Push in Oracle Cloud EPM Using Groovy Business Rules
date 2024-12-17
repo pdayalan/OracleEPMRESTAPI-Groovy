@@ -1,0 +1,34 @@
+/* RTPS: {RTP_Version} {RTP_Years} {RTP_Version} */
+
+def Version = rtps.RTP_Version.toString()
+def Years = rtps.RTP_Years.toString()
+def Version = rtps.RTP_Version.toString()
+
+// Set substitution variables
+operation.application.setSubstitutionVariableValue('Version', Version)
+operation.application.setSubstitutionVariableValue('Years', Years)
+operation.application.setSubstitutionVariableValue('Version', Version)
+
+// Validate if the data map exists before executing Smart Push
+// Data Map 1 
+if (operation.application.hasDataMap("Data Map Name1")) {
+    def smartPush1 = operation.application.getDataMap("Data Map Name1").createSmartPush() 
+   
+    smartPush1.execute(["Years": Years, "Version": Version], true)
+    println "Executed the Data Map 'Data Map Name1'"
+} else {
+    println "The Data Map in the application named 'Data Map Name1' does not exist."
+}
+
+// Data Map 2 
+if (operation.application.hasDataMap("Data Map Name2")) {
+    def smartPush5 = operation.application.getDataMap("Data Map Name2").createSmartPush()
+    smartPush5.execute(["Years": Years], true) 
+
+    println "Executed the Data Map 'Data Map Name2."
+} else {
+    println "The Data Map in the application named 'Data Map Name2' does not exist."
+}
+
+// Log user information
+println "Rule executed by: ${operation.user.fullName}"
