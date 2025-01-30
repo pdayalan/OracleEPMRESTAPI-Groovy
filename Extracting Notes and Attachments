@@ -1,0 +1,87 @@
+/* RTPS: */
+
+// Fetch the cube
+Cube cube = operation.application.getCube('Plan1')
+// Fetch descendants for the 'Entity' dimension
+String entityDescendantsExpression = "IDescendants(Total Entity)"
+List<String> entityDescendants = operation.application.getDimensions(cube)
+    .find { it.name == 'Entity' }
+    .getEvaluatedMembers(entityDescendantsExpression, cube) as List<String>
+
+// Fetch descendants for the 'Cost Center' dimension
+String costCenterDescendantsExpression = "ILvl0Descendants(Total Cost Centres)"
+List<String> costCenterDescendants = operation.application.getDimensions(cube)
+    .find { it.name == 'CC' }
+    .getEvaluatedMembers(costCenterDescendantsExpression, cube) as List<String>
+
+println "Processing ${entityDescendants.size()} entities: $entityDescendants"
+println "Processing ${costCenterDescendants.size()} cost centers: $costCenterDescendants"
+
+// Iterate over each entity and cost center and execute the grid query
+entityDescendants.each { entity ->
+    try {
+        println "Starting processing for entity: ${entity}"
+
+        costCenterDescendants.each { costCenter ->
+            try {
+                println "Processing entity: ${entity} with cost center: ${costCenter}"
+
+                // Define the data grid query for the current entity and cost center
+                DataGridDefinition gridDefinition = cube.flexibleDataGridDefinitionBuilder().with {
+                    setPov('Forecast', 'Working', 'FY25', 'TP Segment_NA', 
+                           'LEF Stage 2', 'Product', 
+                           'EIC_999')
+
+                    addColumn('BegBalance', 'Period_NA', 'IDescendants(YearTotal)', 
+                              entity, 'B_PCM', 'BusinessActivity_NA', 
+                              costCenter, 'USD_Reporting', 'Ent_Currency_Reporting')
+
+                    addRow('ILvl0Descendants(Net Income)')
+
+                    setSuppressMissingBlocks(true)
+                    setSuppressInvalidScenarioTps(true)
+                    setSuppressInvalidColumns(true)
+                    setSuppressMissingColumns(true)
+                    setSuppressInvalidRows(true)
+                    setSuppressMissingRows(true)
+
+                    build()
+                }
+
+                // Load and process the data grid for the current entity and cost center
+                cube.loadGrid(gridDefinition, false).withCloseable { grid ->
+                    grid.dataCellIterator().each { obj ->
+                        if (obj instanceof DataCell) {
+                            DataCell cell = (DataCell) obj
+                            if (!cell.isMissing()) {
+                                boolean hasNote = cell.hasCellNote()
+                                boolean hasAttachment = cell.hasCellAttach()
+
+                                if (hasNote || hasAttachment) {
+                                    String details = cell.memberNames.join(", ")
+                                    println "Cell with members [${details}] has:" +
+                                            (hasNote ? " a note" : "") +
+                                            (hasNote && hasAttachment ? " and" : "") +
+                                            (hasAttachment ? " an attachment" : "")
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                println "Error processing entity ${entity} and cost center ${costCenter}: ${e.message}"
+                // Log the error and continue processing other cost centers
+            }
+        }
+
+        println "Completed processing for entity: ${entity}"
+    } catch (Exception e) {
+        println "Error processing entity ${entity}: ${e.message}"
+        // Log the error and continue processing other entities
+    }
+}
+
+println "Completed processing all entities and cost centers."
+
+
+
