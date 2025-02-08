@@ -1,0 +1,127 @@
+/* RTPS: */
+
+// Step 1: Fetch current month and year from substitution variables
+
+/* Need this for Production Go Live - Considering the Current Month */
+/*String currentMonth = operation.application.getSubstitutionVariableValue("DM_CurMth").toString()
+println "Current Month: ${currentMonth}"
+*/
+/* This is considering the 1st Forecast Period */
+String currentMonth = operation.application.getSubstitutionVariableValue("DM_Fcst_First_Mth").toString()
+println "DM_Fcst_First_Mthh: ${currentMonth}"
+
+
+/* Need this for Production Go Live - Considering the Current Year */
+/*String currentYear = operation.application.getSubstitutionVariableValue("DM_CurYr").toString()
+println "Current Year: ${currentYear}"
+*/
+
+/* This is considering the 1st Forecast Year */
+String currentYear = operation.application.getSubstitutionVariableValue("DM_Fcst_First_FY").toString()
+println "DM_Fcst_First_FY: ${currentYear}"
+
+println "Starting Forecast Substitution Variable Updates..."
+
+// Define case details for how many quarters to process each year
+/* This is considering Actual Current Month */
+/*def caseDetails = [
+    "Sep": [3, 4, 0],  // Process 3 quarters in FY25, then 4 in FY26
+    "Dec": [2, 4, 0],  // Process 2 quarters in FY25, then 4 in FY26
+    "Mar": [1, 4, 0],  // Process 1 quarter in FY25, then 4 in FY26
+    "Jun": [0, 4, 4]   // Process 0 quarters in FY25, 4 in FY26, and 4 in FY27
+]*/
+
+
+// Define all fiscal quarters in the proper order and map them to Q1, Q2, Q3, Q4
+def quarterMapping = [
+    "Sep": "Q1",
+    "Dec": "Q2",
+    "Mar": "Q3",
+    "Jun": "Q4"
+]
+
+// Define case details for how many quarters to process each year
+def caseDetails = [
+    "Dec": [3, 4, 0],
+    "Mar": [2, 4, 0],
+    "Jun": [1, 4, 0],
+    "Sep": [4, 4, 0]   // Corrected: 4 quarters in FY26, 4 in FY27
+]
+
+// Validate the current month
+if (!caseDetails.containsKey(currentMonth)) {
+    throwVetoException("Invalid current month: ${currentMonth}")
+}
+
+// Get the case details for the current month
+def currentCase = caseDetails[currentMonth]
+int quartersInCurrentYear = currentCase[0]
+int quartersInNextYear = currentCase[1]
+int quartersInYearAfterNext = currentCase[2]
+
+// Initialize processing variables
+List<String> periodsToProcess = []
+int currentQuarterIndex = quarterMapping.keySet().toList().indexOf(currentMonth)
+int dmYearSuffix = currentYear.replace("FY", "").toInteger()
+
+// Process quarters for the current year (FY26)
+for (int i = 0; i < quartersInCurrentYear; i++) {
+    String quarter = quarterMapping.keySet().toList()[currentQuarterIndex % 4]
+    String quarterWithYear = "${quarterMapping[quarter]}-FY${dmYearSuffix}"
+    periodsToProcess.add(quarterWithYear)
+    currentQuarterIndex++
+}
+
+// Move to the next year (FY27)
+dmYearSuffix++
+
+// Process quarters for the next year (FY27)
+for (int i = 0; i < quartersInNextYear; i++) {
+    String quarter = quarterMapping.keySet().toList()[currentQuarterIndex % 4]
+    String quarterWithYear = "${quarterMapping[quarter]}-FY${dmYearSuffix}"
+    periodsToProcess.add(quarterWithYear)
+    currentQuarterIndex++
+}
+
+// Ensure the periods list has exactly 8 entries
+while (periodsToProcess.size() < 8) {
+    periodsToProcess.add("-")
+}
+
+println "Periods to Process: ${periodsToProcess}"
+
+// Define the month values for each quarter
+def quarterMonths = [
+    "Q1": ["Sep"],
+    "Q2": ["Dec"],
+    "Q3": ["Mar"],
+    "Q4": ["Jun"]
+]
+
+// Set the substitution variables with quarter names and fiscal years
+for (int i = 1; i <= 8; i++) {
+    String quarterWithYear = periodsToProcess[i - 1]
+    operation.application.setSubstitutionVariableValue("DM_Fcst_Qtr${i}".toString(), quarterWithYear)
+    println "DM_Fcst_Qtr${i} set to: ${quarterWithYear}"
+
+    if (quarterWithYear != "-") {
+        String[] quarterYearArray = quarterWithYear.split("-")
+        String quarter = quarterYearArray[0]
+        String year = quarterYearArray[1]
+
+        String month = quarterMonths[quarter][0]
+        operation.application.setSubstitutionVariableValue("DM_Clear_Fcst_Per${i}".toString(), month)
+        operation.application.setSubstitutionVariableValue("DM_Clear_Fcst_Per${i}_Yr".toString(), year)
+        println "DM_Clear_Fcst_Per${i} set to: ${month}"
+        println "DM_Clear_Fcst_Per${i}_Yr set to: ${year}"
+    } else {
+        operation.application.setSubstitutionVariableValue("DM_Clear_Fcst_Per${i}".toString(), "-")
+        operation.application.setSubstitutionVariableValue("DM_Clear_Fcst_Per${i}_Yr".toString(), "-")
+        println "DM_Clear_Fcst_Per${i} set to: -"
+        println "DM_Clear_Fcst_Per${i}_Yr set to: -"
+    }
+}
+
+// Final output
+println "Substitution Variables Updated Successfully!"
+return "Substitution Variables Updated Successfully"
