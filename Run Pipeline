@@ -1,0 +1,105 @@
+//Step : Process Each Forecast Period
+String LAST_JOB_ID = ""  // Initialize
+
+for (int i = 1; i <= 8; i++) {
+    try {
+        println "Checking forecast period ${i}"
+
+        String monthVar = "Fcst_Per${i}"
+        String yearVar = "Fcst_Per${i}_Yr"
+        String quarterVar = "Fcst_Qtr${i}"
+
+        String fcstMonth = operation.application.getSubstitutionVariableValue(monthVar).toString()
+        String fcstYear = operation.application.getSubstitutionVariableValue(yearVar).toString()
+        String fcstQuarter = operation.application.getSubstitutionVariableValue(quarterVar).toString()
+
+        println "Month: $fcstMonth, Year: $fcstYear, Quarter: $fcstQuarter"
+
+        if (fcstYear != forecastYear) {
+            println "Skipping period ${i} as it does not match forecast year $forecastYear."
+            continue
+        }
+
+        if (fcstMonth == "-" || fcstYear == "-") {
+            println "Skipping period ${i} due to invalid values."
+            continue
+        }
+
+        String calendarYear = (fcstMonth in ["Sep", "Dec"]) ? "${fcstYear[-2..-1].toInteger() - 1}" : "${fcstYear[-2..-1]}"
+        String fcstPeriod = "${fcstMonth}-${calendarYear}"
+        println "Processing for period: $fcstPeriod"
+
+
+      // Ensure previous jobs finish before starting a new one
+if (LAST_JOB_ID && LAST_JOB_ID.isNumber()) {
+    boolean jobRunning = true
+    int checkAttempts = 0
+
+    while (jobRunning && checkAttempts < 100) {
+        sleep(5000)
+        String activeJobStatus = getJobStatus(connectionNamedm, LAST_JOB_ID)
+
+        if (activeJobStatus == "RUNNING") {
+            println "Waiting for previous job to finish before starting Forecast Period $i..."
+        } else if (activeJobStatus == "FAILED") {
+            println "⚠️ Warning: Previous Pipeline Job ($LAST_JOB_ID) failed. Moving to next period immediately."
+            break  // Stop waiting and move on
+        } else {
+            jobRunning = false
+        }
+        checkAttempts++
+    }
+}
+
+        // Submit new pipeline job only if no other job is running
+        HttpResponse<String> jsonResponse = operation.application.getConnection(connectionNamedm)
+            .post()
+            .header("Content-Type", "application/json")
+            .body(json([
+                "jobName": "PipelineName",
+                "jobType": "pipeline",
+                "variables": [
+                    "FCST_Month_1": fcstMonth,
+                    "FCST_Year_1": fcstYear,
+                    "FCST_Period_1": fcstPeriod,
+                    "FCST_Qtr_1": fcstQuarter,
+                    "IMPORTMODE": "Replace",
+                    "EXPORTMODE": "Merge",
+                    "ATTACH_LOGS": "Yes"
+                ]
+            ]))
+            .asString()
+
+        if (jsonResponse == null || jsonResponse.body == null) {
+            println "⚠️ Error: Null response received for period ${fcstPeriod}. Skipping..."
+            continue  // Move to next period
+        }
+
+        println "Response received: ${jsonResponse.body}"
+
+        ReadContext ctx = JsonPath.parse(jsonResponse.body)
+        String jobId = ctx.read('$.jobId')
+
+        if (jobId == null || jobId.toString().trim().isEmpty()) {
+            println "⚠️ Error: Retrieved empty job ID for period ${fcstPeriod}. Skipping..."
+            continue
+        }
+
+        // Store last job ID
+        LAST_JOB_ID = jobId.toString()
+        println "Stored LAST_JOB_ID: ${LAST_JOB_ID}"
+
+        // Ensure job completes before moving to next period
+        boolean isComplete = waitForCompletion(connectionNamedm, LAST_JOB_ID, "Pipeline Job")
+
+        if (!isComplete) {
+	    throwVetoException("❌ Pipeline job failed for forecast period ${i}. Stopping execution.")
+						}
+
+
+ }   catch (Exception e) {
+    throw new Exception("❌ Fatal error processing forecast period ${i}: ${e.message}. Stopping execution.")
+						}
+
+}
+
