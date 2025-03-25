@@ -1,0 +1,52 @@
+
+// Step 9: Fetch pipeline execution details
+try {
+    HttpResponse<String> PipeResponse = operation.application.getConnection("localURL")
+        .get('/aif/rest/V1/pipeline?pipelineName=PipelineName')
+        .asString()
+
+    if (PipeResponse == null || PipeResponse.body == null) {
+        throwVetoException("Error: Received null response for pipeline execution.")
+    }
+
+    // Parse JSON response
+    Map jsonResponse1 = (Map) new groovy.json.JsonSlurper().parseText(PipeResponse.body)
+    Map responseDetails = (Map) jsonResponse1.get("response")
+    List<Map> stages = (List<Map>) responseDetails.get("stages")
+
+    // Log pipeline details
+    println "Pipeline Name: ${responseDetails.get("name")}"
+    println "Display Name: ${responseDetails.get("displayName")}"
+    println "Pipeline ID: ${responseDetails.get("id")}"
+    println "Status: ${jsonResponse1.get("status")}"
+    println "Parallel Jobs: ${responseDetails.get("parallelJobs")}"
+
+    boolean failureDetected = false
+
+    stages.each { Map stage ->
+        println "  Stage Name: ${stage.get("stageName")}"
+        println "  Display Name: ${stage.get("stageDisplayName")}"
+        println "  Stage ID: ${stage.get("stageID")}"
+
+        List<Map> jobs = (List<Map>) stage.get("jobs")
+        jobs?.each { Map job ->
+            String jobStatus = job.get("status") ?: 'Not started'
+            println "    Job Name: ${job.get("jobName")}"
+            println "    Job ID: ${job.get("processId") ?: 'null'}"
+            println "    Job Type: ${job.get("jobType")}"
+            println "    Status: ${jobStatus}"
+
+            if (jobStatus in ["FAILED", "ERROR", "CANCELLED"]) {
+                println "❌ Job ${job.get("jobName")} failed! Aborting pipeline execution."
+                failureDetected = true
+            }
+        }
+    }
+
+    if (failureDetected) {
+        throwVetoException("❌ One or more child jobs failed in the pipeline. Rule execution aborted.")
+    }
+
+} catch (Exception e) {
+    throwVetoException("Error fetching pipeline execution details: ${e.message}")
+}
