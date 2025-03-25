@@ -1,5 +1,5 @@
 
-// Step 9: Fetch pipeline execution details
+// Step : Fetch pipeline execution details
 try {
     HttpResponse<String> PipeResponse = operation.application.getConnection("localURL")
         .get('/aif/rest/V1/pipeline?pipelineName=PipelineName')
