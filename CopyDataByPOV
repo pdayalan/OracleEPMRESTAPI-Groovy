@@ -1,0 +1,119 @@
+/* RTPS: {PromptPeriod} {PromptYear}  */
+
+// Step 1: Define the connection names
+def connectionName = "LocalHost"
+println "Using EPCM Connection name: $connectionName"
+
+   
+String fcstMth = rtps.PromptPeriod.toString().replaceAll('"', '')     
+String fcstYear = rtps.PromptYear.toString().replaceAll('"', '')
+
+
+// **STEP 1: Copy Data by Point of View**
+println "Starting Copy Data process..."
+
+
+HttpResponse<String> copyResponse = operation.application.getConnection(connectionName)
+    .post('/rest/v3/applications/ICPCM/jobs')
+    .header("Content-Type", "application/json")
+    .body(json([
+        "jobType": "Copy POV",
+        "jobName": "Copy Data Job",
+        "parameters": [
+            "povDelimiter"  : ":",
+            "sourcePOVName" : "$fcstYear:$fcstMth:Actual:Working",
+            "destPOVName"   : "$fcstYear:$fcstMth:Actual:DM_Archive_Actual_Version",
+            "sourceCubeName": "PCM_CLC",
+            "destCubeName"  : "PCM_CLC",
+            "createDestPOV" : "true",
+            "copyType"      : "ALL_DATA"
+        ]
+    ]))
+    .asString()
+
+println "Copy Data Response: ${copyResponse.status}"
+println "Copy Data Response Body: ${copyResponse.body}" // Debugging line
+
+// Validate response status
+if (!(200..299).contains(copyResponse.status)) {
+    throwVetoException("Copy Data job failed. HTTP Status: ${copyResponse.status}")
+}
+
+// Extract Job ID and validate
+String copyJobId
+try {
+    copyJobId = JsonPath.parse(copyResponse.body).read('$.jobId')
+} catch (Exception e) {
+    throwVetoException("Failed to extract jobId from Copy Data response. Response: ${copyResponse.body}")
+}
+
+if (!copyJobId) {
+    throwVetoException("Copy Data job did not return a valid jobId. Response: ${copyResponse.body}")
+}
+
+println "Copy Data Job ID: ${copyJobId}"
+
+// Monitor job completion
+if (!monitorJob(connectionName, copyJobId, "Copy Data")) {
+    throwVetoException("Copy Data job did not complete successfully.")
+}
+
+println "Copy Data process completed successfully."
+
+
+/* Function to monitor job status */
+ 
+boolean monitorJob(String connectionName, String jobId, String jobType) {
+    int maxRetries = 20  // Increased retries
+    int waitTime = 5000 // 5 seconds
+
+    for (int i = 0; i < maxRetries; i++) {
+        HttpResponse<String> statusResponse = operation.application.getConnection(connectionName)
+            .get("/rest/v3/applications/ICPCM/jobs/${jobId}")
+            .asString()
+
+        def responseBody = statusResponse.body
+        println "${jobType} Job Status Response: ${responseBody}" // Debugging line
+
+        def jobStatus
+        try {
+            jobStatus = JsonPath.parse(responseBody).read('$.status') as int
+        } catch (Exception e) {
+            println "Warning: Failed to extract status from job response."
+            jobStatus = Integer.MAX_VALUE
+        }
+
+        println "${jobType} Job Status: ${jobStatus}"
+
+        // Interpret job status correctly
+        switch (jobStatus) {
+            case -1:
+                println "Job is still in progress. Retrying in ${waitTime / 1000} seconds..."
+                break
+            case 0:
+                println "Job completed successfully!"
+                return true
+            case 1:
+                println "Job failed with an error."
+                return false
+            case 2:
+            case 3:
+                println "Job was cancelled."
+                return false
+            case 4:
+                println "Invalid parameter in job request."
+                return false
+            case Integer.MAX_VALUE:
+                println "Unknown job status. Exiting."
+                return false
+            default:
+                println "Unexpected job status: ${jobStatus}. Exiting."
+                return false
+        }
+
+        sleep(waitTime)
+    }
+
+    println "Job monitoring timed out after ${maxRetries} attempts."
+    return false
+}
