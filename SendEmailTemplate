@@ -1,0 +1,51 @@
+/* RTPS: {Email_To}, {Email_Subject}, {Enter_Email_Body} */
+
+// Retrieve runtime prompts
+Map<String, Object> rtps = (Map<String, Object>) this.getRtps()
+String emailTo = rtps.get("Email_To") ?: ""
+String emailToFormatted = emailTo.split(',').collect { ((String) it).trim() }.join(';')
+String emailSubject = rtps.get("Email_Subject") ?: ""
+String emailBodyContent = rtps.get("Enter_Email_Body") ?: ""
+
+// Log for debugging
+/*println "Email_To: ${emailTo}"*/
+println "Email_To: ${emailToFormatted}"
+println "Email_Subject: ${emailSubject}"
+println "Enter_Email_Body: ${emailBodyContent}"
+
+// Validate RTP values
+if (!emailTo || !emailSubject || !emailBodyContent) {
+    throwVetoException("Invalid runtime prompt values. Ensure all prompts are filled.")
+}
+
+// Connection details
+String connectionNameLocal = "URL"
+println "The Rule is using the Local URL name: $connectionNameLocal"
+
+// Construct JSON payload
+String sendEmailPayload = """
+{
+    "to": "${emailToFormatted}",
+    "subject": "${emailSubject}",
+     "body": "<html><head><style>body { font-family: Arial, sans-serif; color: #333; }</style></head><body><p style='font-size: small; color: black; font-style: italic;'>--This is system generated email notification. Pls do not reply back to this email address.--</p><p>${emailBodyContent}</p></body></html>"
+}
+"""
+
+// Log payload for validation
+println "Constructed Payload: ${sendEmailPayload}"
+
+// Send the email request
+HttpResponse<String> sendEmail = operation.application.getConnection(connectionNameLocal)
+    .post('/interop/rest/v2/mails/send')
+    .header("Content-Type", "application/json")
+    .body(sendEmailPayload)
+    .asString()
+
+// Log the response
+println "sendEmail Job Response: ${sendEmail.status}"
+println "sendEmail Response Body: ${sendEmail.body}"
+
+// Validate the response
+if (!(200..299).contains(sendEmail.status)) {
+    throwVetoException("Failed to send Email. HTTP Status: ${sendEmail.status}. Response: ${sendEmail.body}")
+}
