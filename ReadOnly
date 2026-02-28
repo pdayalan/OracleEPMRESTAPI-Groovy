@@ -1,0 +1,54 @@
+
+// === CONFIG ===
+final String CONTROL_ACCOUNT  = "SL"               // Account that holds the Smart List
+final String SMARTLIST_NAME   = "SL"               // Smart List name assigned to that account
+final String LOCK_VALUE_NAME  = "DoNotUpdate"      // Smart List *Name* (your screenshot shows Name=DoNotUpdate)
+final Set<String> TARGET_ACCOUNTS = ["A_77300","A_77600"] as Set
+
+def sl = operation.application.getSmartList(SMARTLIST_NAME)
+if (sl == null) {
+    throwVetoException("Smart List '${SMARTLIST_NAME}' not found or not assigned to account '${CONTROL_ACCOUNT}'.")
+}
+
+// PASS 1: find periods to lock where SL == DoNotUpdate
+Set<String> periodsToLock = new HashSet<>()
+
+operation.grid.dataCellIterator().each { DataCell cell ->
+    if (cell.getMemberName("Account") != CONTROL_ACCOUNT) return
+
+    def raw = cell.getData()
+    if (raw == null) return
+
+    Long key = null
+    try {
+        key = (raw instanceof Number) ? ((Number)raw).longValue() : Double.valueOf(raw.toString()).longValue()
+    } catch (Exception ignored) { /* skip */ }
+    if (key == null || key <= 0L) return
+
+    def entry = sl.getEntry(key)
+    if (entry == null) return
+
+    if (LOCK_VALUE_NAME.equals(entry.getName())) {
+        String periodName = cell.getMemberName("Period")
+        if (periodName != null) periodsToLock.add(periodName)
+    }
+}
+
+println("BeforeLoad: periodsToLock = " + periodsToLock)
+
+// PASS 2: lock the target accounts in those periods (skip the SL column)
+int locked = 0
+operation.grid.dataCellIterator().each { DataCell cell ->
+    String periodName = cell.getMemberName("Period")
+    if (!periodsToLock.contains(periodName)) return
+
+    String acc = cell.getMemberName("Account")
+    if (acc == CONTROL_ACCOUNT) return
+    if (!TARGET_ACCOUNTS.contains(acc)) return
+
+    cell.setForceReadOnly(true)
+    locked++
+    println("BeforeLoad: Locked -> Period=${periodName}, Account=${acc}")
+}
+
+println("BeforeLoad: Total cells locked: ${locked}")
